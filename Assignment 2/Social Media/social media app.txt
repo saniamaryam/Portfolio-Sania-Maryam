@@ -1,0 +1,171 @@
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+
+const App = () => {
+  const [posts, setPosts] = useState([]);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Fetch posts from JSONPlaceholder API
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const fetchPosts = () => {
+    setRefreshing(true);
+    fetch('https://jsonplaceholder.typicode.com/posts')
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Failed to fetch posts');
+        }
+        return response.json();
+      })
+      .then((data) => {
+        setPosts(data);
+        setLoading(false);
+        setRefreshing(false);
+      })
+      .catch((error) => {
+        console.error(error);
+        setError(error.message);
+        setLoading(false);
+        setRefreshing(false);
+      });
+  };
+
+  // Render a single post item
+  const renderPost = ({ item }) => (
+    <TouchableOpacity onPress={() => setSelectedPost(item)}>
+      <View style={styles.post}>
+        <Text style={styles.postTitle}>{item.title}</Text>
+        <Text style={styles.postBody}>{item.body}</Text>
+        <Text style={styles.userId}>User ID: {item.userId}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // Render the details screen
+  const renderDetails = () => (
+    <View style={styles.detailsContainer}>
+      <Text style={styles.detailsTitle}>{selectedPost.title}</Text>
+      <Text style={styles.detailsBody}>{selectedPost.body}</Text>
+      <Text style={styles.detailsUserId}>User ID: {selectedPost.userId}</Text>
+      <TouchableOpacity style={styles.backButton} onPress={() => setSelectedPost(null)}>
+        {refreshing ? (
+          <ActivityIndicator color="#FFF" />
+        ) : (
+          <Text style={styles.backButtonText}>Back to Feed</Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+
+  // Render the feed screen
+  const renderFeed = () => (
+    <View style={styles.container}>
+      <Text style={styles.feedHeader}>Social Media Feed</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color="#007BFF" />
+      ) : error ? (
+        <Text style={styles.errorText}>Error: {error}</Text>
+      ) : (
+        <FlatList
+          data={posts}
+          renderItem={renderPost}
+          keyExtractor={(item) => item.id.toString()}
+          refreshing={refreshing}
+          onRefresh={fetchPosts}
+        />
+      )}
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      {selectedPost ? renderDetails() : renderFeed()}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#F7F7F7',
+  },
+  feedHeader: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  post: {
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  postTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  postBody: {
+    fontSize: 14,
+    color: '#333',
+    marginTop: 8,
+  },
+  userId: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 8,
+  },
+  detailsContainer: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#F7F7F7',
+  },
+  detailsTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+  },
+  detailsBody: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 16,
+  },
+  detailsUserId: {
+    fontSize: 14,
+    color: '#666',
+  },
+  backButton: {
+    backgroundColor: '#007BFF',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  backButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  errorText: {
+    fontSize: 16,
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+});
+
+export default App;
