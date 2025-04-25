@@ -1,0 +1,244 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  Button,
+  FlatList,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+} from 'react-native';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const App = () => {
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState(['All']);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [loading, setLoading] = useState(true);
+  const [cart, setCart] = useState([]);
+
+  // Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get('https://fakestoreapi.com/products/categories');
+        setCategories(['All', ...response.data]);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Fetch products
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        const url =
+          selectedCategory === 'All'
+            ? 'https://fakestoreapi.com/products'
+            : `https://fakestoreapi.com/products/category/${selectedCategory}`;
+        const response = await axios.get(url);
+        setProducts(response.data);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, [selectedCategory]);
+
+  // Load cart from storage
+  useEffect(() => {
+    const loadCart = async () => {
+      try {
+        const cartData = await AsyncStorage.getItem('cart');
+        if (cartData) {
+          setCart(JSON.parse(cartData));
+        }
+      } catch (error) {
+        console.error('Error loading cart:', error);
+      }
+    };
+    loadCart();
+  }, []);
+
+  // Add product to cart
+  const addToCart = async (product) => {
+    try {
+      const updatedCart = [...cart, product];
+      setCart(updatedCart);
+      await AsyncStorage.setItem('cart', JSON.stringify(updatedCart));
+      Alert.alert('Success', `${product.title} added to cart!`);
+    } catch (error) {
+      console.error('Error saving to cart:', error);
+      Alert.alert('Error', 'Failed to add product to cart.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007bff" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* App Title */}
+      <Text style={styles.appTitle}>🛍️ ShopEasy</Text>
+
+      {/* Categories List */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryContainer}>
+        {categories.map((category) => (
+          <TouchableOpacity
+            key={category}
+            style={[
+              styles.categoryButton,
+              selectedCategory === category && styles.selectedCategory,
+            ]}
+            onPress={() => setSelectedCategory(category)}
+          >
+            <Text style={[styles.categoryText, selectedCategory === category && styles.selectedCategoryText]}>
+              {category.toUpperCase()}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Product List */}
+      <FlatList
+        data={products}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.productContainer}>
+            <Image source={{ uri: item.image }} style={styles.productImage} />
+            <Text style={styles.productTitle}>{item.title}</Text>
+            <Text style={styles.productPrice}>${item.price}</Text>
+            <Text style={styles.productDescription} numberOfLines={2}>
+              {item.description}
+            </Text>
+            <TouchableOpacity
+              style={styles.addToCartButton}
+              onPress={() => addToCart(item)}
+            >
+              <Text style={styles.addToCartText}>Add to Cart</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+
+      {/* Cart Button */}
+      <View style={styles.cartButtonContainer}>
+        <Button
+          title={`🛒 View Cart (${cart.length})`}
+          onPress={() => Alert.alert('Cart', `You have ${cart.length} item(s) in your cart.`)}
+        />
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  appTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginVertical: 20,
+    color: '#007bff',
+  },
+  categoryContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    paddingVertical: 10,
+  },
+  categoryButton: {
+    height: 40,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: '#e0e0e0',
+    marginRight: 10,
+    alignItems: 'center',
+  },
+  selectedCategory: {
+    backgroundColor: '#007bff',
+  },
+  categoryText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  selectedCategoryText: {
+    color: '#fff',
+  },
+  productContainer: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  productImage: {
+    width: 150,
+    height: 150,
+    marginBottom: 16,
+    borderRadius: 8,
+  },
+  productTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  productPrice: {
+    fontSize: 16,
+    color: '#007bff',
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  productDescription: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  addToCartButton: {
+    backgroundColor: '#007bff',
+    padding: 10,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  addToCartText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  cartButtonContainer: {
+    marginTop: 16,
+  },
+});
+
+export default App;
